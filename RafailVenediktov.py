@@ -167,7 +167,7 @@ class EvolutionAlgorithm:
     def __init__(self,
                  generations: int,
                  population_size: int,
-                 key : str,
+                 key: str,
                  chords: List[Chord], ):
         self.generations = generations
         self.population_size = population_size
@@ -238,8 +238,8 @@ class EvolutionAlgorithm:
             if random_chord_type == "diminished":
                 offsprings[offsprings.index(offspring)] = (offspring[0], offspring[0].get_diminished())
             elif random_chord_type == "sus2":
-                if 'm' in self.key and self.chords.index(offspring[0]) + 1 not in [2,5] or \
-                        'm' not in self.key and self.chords.index(offspring[0]) + 1 not in [3,7] :
+                if 'm' in self.key and self.chords.index(offspring[0]) + 1 not in [2, 5] or \
+                        'm' not in self.key and self.chords.index(offspring[0]) + 1 not in [3, 7]:
                     offsprings[offsprings.index(offspring)] = (offspring[0], offspring[0].get_sus2())
             elif random_chord_type == "sus4":
                 if 'm' in self.key and self.chords.index(offspring[0]) + 1 not in [2, 6] or \
@@ -299,83 +299,127 @@ class AccompanimentGenerator:
         self.initial_melody = MidiFile(path, clip=True)
 
     def divide_melody_by_parts(self) -> List[List[Union[str, int]]]:
-        count_time = 0
-        notes = []
-        part = []
-        for message in self.initial_melody.play():
-            if message.time != 0:
-                count_time += message.time
-                if message.type == 'note_off':
-                    part.append(message.note % 12)
-                else:
-                    part.append('-')
+        time = 0
+        notes_length = []
+        for message in self.initial_melody.tracks[1]:
+            time += message.time
+            if message.type == 'note_on':
+                notes_length.append([message.note, time])
+            elif message.type == 'note_off':
+                notes_length[-1].append(time)
 
-                if count_time == 0.96:
-                    notes.append(part)
-                    part = []
-                    count_time = 0
+        print(notes_length)
+        notes = []
+        num_parts = round(time / 768)
+        for i in range(num_parts):
+            part = []
+            for note, start, finish in notes_length:
+                if 768 * i <= start <= finish <= 768 * (i + 1):
+                    part.append(note % 12)
+
+            notes.append(part)
         return notes
 
     def include_accompaniment(self, chords: List[Tuple[Chord, List[int]]]) -> MidiTrack:
         self.accompaniment = MidiTrack()
         self.accompaniment.append(MetaMessage('track_name', name='Elec. Piano (Classic)', time=0))
+        time = 0
+        chords_length = []
+        for chord in chords:
+            for i in range(2):
+                chords_length.append([chord[1], time, time + 384])
+                time += 384
 
-        count_time = 0
-        part = 0
-        is_write = False
-        for message in self.initial_melody.play():
-            times = int(message.time / 0.48)
-            if message.type == 'note_on' and message.time != 0:
-                for note in chords[part][1]:
-                    self.accompaniment.append(Message('note_on', channel=0, note=36 + note,
-                                                      velocity=50, time=0))
-                for i in range(1, times + 1):
-                    is_pause = True
-                    for note in chords[part][1]:
-                        if is_pause:
-                            self.accompaniment.append(Message('note_off', channel=0, note=36 + note,
-                                                          velocity=0, time=int(384)))
-                            count_time += 384
-                            is_pause = False
-                        else:
-                            self.accompaniment.append(Message('note_off', channel=0, note=36 + note,
-                                                              velocity=0, time=0))
-                    if count_time == 768:
-                        part += 1
-                        count_time = 0
-                    if i != times-1:
-                        for note in chords[part][1]:
-                            self.accompaniment.append(Message('note_on', channel=0, note=36 + note,
-                                                              velocity=50, time=0))
-            if times != 0 and message.type == 'note_on':
-                message.time = 0
+        time = 0
+        cur_time = 0
+        for message in self.initial_melody.tracks[-1][2:]:
+            time += message.time
+            if chords_length[0][2] <= time:
+                self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][0],
+                                                  velocity=50, time=chords_length[0][2] - cur_time))
+                self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][1],
+                                                  velocity=50, time=0))
+                self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][2],
+                                                  velocity=50, time=0))
+                cur_time = chords_length[0][2]
+                chords_length.pop(0)
+            if not chords_length:
+                message.time = time - cur_time
                 self.accompaniment.append(message)
-            else:
-                message.time = int(message.time * 800)
-                self.accompaniment.append(message)
-            count_time += message.time
-            if count_time == 0 and not is_write:
-                if part != 0:
-                    for note in chords[part - 1][1]:
-                        self.accompaniment.append(Message('note_off', channel=0, note=36 + note, velocity=0, time=0))
-                for note in chords[part][1]:
-                    self.accompaniment.append(Message('note_on', channel=0, note=36 + note, velocity=50, time=0))
-                is_write = True
+                break
+            if chords_length[0][1] is not None and chords_length[0][1] <= time:
+                self.accompaniment.append(Message('note_on', channel=0, note=36 + chords_length[0][0][0],
+                                                  velocity=50, time=chords_length[0][1] - cur_time))
+                self.accompaniment.append(Message('note_on', channel=0, note=36 + chords_length[0][0][1],
+                                                  velocity=50, time=0))
+                self.accompaniment.append(Message('note_on', channel=0, note=36 + chords_length[0][0][2],
+                                                  velocity=50, time=0))
+                cur_time = chords_length[0][1]
+                chords_length[0][1] = None
 
-            if count_time == 384:
-                for note in chords[part][1]:
-                    self.accompaniment.append(Message('note_off', channel=0, note=36 + note, velocity=0, time=0))
-                for note in chords[part][1]:
-                    self.accompaniment.append(Message('note_on', channel=0, note=36 + note, velocity=50, time=0))
-
-                is_write = False
-
-            if count_time == 768:
-                count_time = 0
-                for note in chords[part][1]:
-                    self.accompaniment.append(Message('note_off', channel=0, note=36 + note, velocity=0, time=0))
-                part += 1
-                is_write = False
+            message.time = time - cur_time
+            self.accompaniment.append(message)
+            cur_time = time
+        if chords_length:
+            self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][0],
+                                              velocity=50, time=chords_length[0][2] - cur_time))
+            self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][1],
+                                              velocity=50, time=0))
+            self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][2],
+                                              velocity=50, time=0))
+        # count_time = 0
+        # part = 0
+        # is_write = False
+        # for message in self.initial_melody.tracks[-1]:
+        #     times = int(message.time / 384)
+        #     if message.type == 'note_on' and message.time != 0:
+        #         for note in chords[part][1]:
+        #             self.accompaniment.append(Message('note_on', channel=0, note=36 + note,
+        #                                               velocity=50, time=0))
+        #         for i in range(1, times + 1):
+        #             is_pause = True
+        #             for note in chords[part][1]:
+        #                 if is_pause:
+        #                     self.accompaniment.append(Message('note_off', channel=0, note=36 + note,
+        #                                                       velocity=0, time=int(384)))
+        #                     count_time += 384
+        #                     is_pause = False
+        #                 else:
+        #                     self.accompaniment.append(Message('note_off', channel=0, note=36 + note,
+        #                                                       velocity=0, time=0))
+        #             if count_time == 768:
+        #                 part += 1
+        #                 count_time = 0
+        #             if i != times - 1:
+        #                 for note in chords[part][1]:
+        #                     self.accompaniment.append(Message('note_on', channel=0, note=36 + note,
+        #                                                       velocity=50, time=0))
+        #     if times != 0 and message.type == 'note_on':
+        #         message.time = 0
+        #     self.accompaniment.append(message)
+        #     count_time += message.time
+        #     if count_time == 0 and not is_write:
+        #         if part != 0:
+        #             for note in chords[part - 1][1]:
+        #                 self.accompaniment.append(Message('note_off', channel=0, note=36 + note, velocity=0, time=0))
+        #         for note in chords[part][1]:
+        #             self.accompaniment.append(Message('note_on', channel=0, note=36 + note, velocity=50, time=0))
+        #         is_write = True
+        #
+        #     if count_time == 384:
+        #         for note in chords[part][1]:
+        #             self.accompaniment.append(Message('note_off', channel=0, note=36 + note, velocity=0, time=0))
+        #         for note in chords[part][1]:
+        #             self.accompaniment.append(Message('note_on', channel=0, note=36 + note, velocity=50, time=0))
+        #
+        #         is_write = False
+        #
+        #     if count_time == 768:
+        #         count_time = 0
+        #         for note in chords[part][1]:
+        #             self.accompaniment.append(Message('note_off', channel=0, note=36 + note, velocity=0, time=0))
+        #         part += 1
+        #         is_write = False
         self.accompaniment.append(MetaMessage('end_of_track', time=0))
         return self.accompaniment
 
@@ -384,7 +428,7 @@ class AccompanimentGenerator:
         melody_key, chords = keys.get_melody_key()
         print(f"Melody key is {melody_key} : {chords}")
         divided_melody = self.divide_melody_by_parts()
-        evolutionAlgorithm = EvolutionAlgorithm(generations=150, population_size=50, chords=chords, key = melody_key)
+        evolutionAlgorithm = EvolutionAlgorithm(generations=150, population_size=50, chords=chords, key=melody_key)
 
         chords_for_accompaniment = []
         for part in divided_melody:
