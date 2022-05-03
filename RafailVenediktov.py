@@ -161,7 +161,6 @@ class Keys:
 
 
 class EvolutionAlgorithm:
-    MAX_FITNESS = 3
     COUNT_WITHOUT_CHANGING = 100
 
     def __init__(self,
@@ -197,17 +196,28 @@ class EvolutionAlgorithm:
 
     def get_fitness(self,
                     melody_part: List[Union[str, int]],
-                    individual: Tuple[Chord, List[int]]) -> int:
-        note_in_melody_part = list(set(melody_part))
+                    individual: Tuple[Chord, List[int]]) -> float:
         count = 0
-        for note in note_in_melody_part:
+        for note in melody_part:
             if note in individual[1]:
                 count += 1
+        if len(melody_part) == 1 and individual[1][0] in melody_part:
+            count += 1
+        if 'm' in self.key and 'm' in individual[0].name:
+            count += 0.3
+        if 'm' not in self.key and 'm' not in individual[0].name:
+            count += 0.3
+        # if melody_part[0] == individual[1][0]:
+        #     count += 0.5
+        # if melody_part[-1] == individual[1][0]:
+        #     count += 0.5
+        if abs(individual[1][1] - individual[1][0]) > 2 and abs(individual[1][1] - individual[1][2]) > 2:
+            count += 0.1
         return count
 
     def population_fitness(self,
                            melody_part: List[Union[str, int]],
-                           population: List[Tuple[Chord, List[int]]]) -> List[int]:
+                           population: List[Tuple[Chord, List[int]]]) -> List[float]:
         fitness = [self.get_fitness(melody_part, individual) for individual in population]
         return fitness
 
@@ -250,9 +260,9 @@ class EvolutionAlgorithm:
 
     def selection(self,
                   population: List[Tuple[Chord, List[int]]],
-                  population_fitness: List[int],
+                  population_fitness: List[float],
                   offsprings: List[Tuple[Chord, List[int]]],
-                  offsprings_fitness: List[int],
+                  offsprings_fitness: List[float],
                   size: int) -> List[Tuple[Chord, List[int]]]:
 
         sort_index = np.argsort(population_fitness)
@@ -279,7 +289,7 @@ class EvolutionAlgorithm:
         for generation in range(self.generations):
             prev_fitness = fitness
             offsprings = self.crossover(population, 30)
-            offsprings = self.mutation(offsprings, 15)
+            offsprings = self.mutation(offsprings, 5)
             offsprings_fitness = self.population_fitness(melody_part, offsprings)
             population = self.selection(population, fitness, offsprings, offsprings_fitness, 3)
             fitness = self.population_fitness(melody_part, population)
@@ -288,8 +298,7 @@ class EvolutionAlgorithm:
 
             print(f"{generation + 1}. Chord {population[fitness.index(max(fitness))][0]} with fitness {max(fitness)}")
 
-            if max(fitness) == EvolutionAlgorithm.MAX_FITNESS or \
-                    count_same_fitness == EvolutionAlgorithm.COUNT_WITHOUT_CHANGING:
+            if count_same_fitness == EvolutionAlgorithm.COUNT_WITHOUT_CHANGING:
                 print(f"The best chord is {population[fitness.index(max(fitness))]} with fitness {max(fitness)}\n\n")
                 return population[fitness.index(max(fitness))]
 
@@ -401,7 +410,7 @@ class AccompanimentGenerator:
         return with_accompaniment
 
 
-melody_path = "input1.mid"
-melody_with_accompaniment_path = "my_melody1.2.mid"
+melody_path = "barbiegirl_mono.mid"
+melody_with_accompaniment_path = "output_ex.mid"
 accompaniment = AccompanimentGenerator(melody_path).generate()
 accompaniment.save(melody_with_accompaniment_path)
