@@ -327,39 +327,45 @@ class AccompanimentGenerator:
         chords_length = []
         for chord in chords:
             for i in range(2):
+                if chord[1][0] > chord[1][1]:
+                    chord[1][0] -= 12
+                if chord[1][1] > chord[1][2]:
+                    chord[1][2] += 12
                 chords_length.append([chord[1], time, time + 384])
                 time += 384
 
         time = 0
         cur_time = 0
-        for message in self.initial_melody.tracks[-1][2:]:
+        for message in self.initial_melody.tracks[-1][2:-1]:
             time += message.time
-            if chords_length[0][2] <= time:
-                self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][0],
-                                                  velocity=50, time=chords_length[0][2] - cur_time))
-                self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][1],
-                                                  velocity=50, time=0))
-                self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][2],
-                                                  velocity=50, time=0))
-                cur_time = chords_length[0][2]
-                chords_length.pop(0)
-            if not chords_length:
+            while chords_length[0][2] <= time or chords_length[0][1] == 0:
+                if chords_length[0][2] <= time:
+                    self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][0],
+                                                      velocity=50, time=chords_length[0][2] - cur_time))
+                    self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][1],
+                                                      velocity=50, time=0))
+                    self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][2],
+                                                      velocity=50, time=0))
+                    cur_time = chords_length[0][2]
+                    chords_length.pop(0)
+                if not chords_length:
+                    message.time = time - cur_time
+                    self.accompaniment.append(message)
+                    cur_time = time
+                    break
+                if chords_length[0][1] is not None and chords_length[0][1] <= time:
+                    self.accompaniment.append(Message('note_on', channel=0, note=36 + chords_length[0][0][0],
+                                                      velocity=50, time=chords_length[0][1] - cur_time))
+                    self.accompaniment.append(Message('note_on', channel=0, note=36 + chords_length[0][0][1],
+                                                      velocity=50, time=0))
+                    self.accompaniment.append(Message('note_on', channel=0, note=36 + chords_length[0][0][2],
+                                                      velocity=50, time=0))
+                    cur_time = chords_length[0][1]
+                    chords_length[0][1] = None
+            else:
                 message.time = time - cur_time
                 self.accompaniment.append(message)
-                break
-            if chords_length[0][1] is not None and chords_length[0][1] <= time:
-                self.accompaniment.append(Message('note_on', channel=0, note=36 + chords_length[0][0][0],
-                                                  velocity=50, time=chords_length[0][1] - cur_time))
-                self.accompaniment.append(Message('note_on', channel=0, note=36 + chords_length[0][0][1],
-                                                  velocity=50, time=0))
-                self.accompaniment.append(Message('note_on', channel=0, note=36 + chords_length[0][0][2],
-                                                  velocity=50, time=0))
-                cur_time = chords_length[0][1]
-                chords_length[0][1] = None
-
-            message.time = time - cur_time
-            self.accompaniment.append(message)
-            cur_time = time
+                cur_time = time
         if chords_length:
             self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][0],
                                               velocity=50, time=chords_length[0][2] - cur_time))
@@ -367,60 +373,11 @@ class AccompanimentGenerator:
                                               velocity=50, time=0))
             self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][2],
                                               velocity=50, time=0))
-        # count_time = 0
-        # part = 0
-        # is_write = False
-        # for message in self.initial_melody.tracks[-1]:
-        #     times = int(message.time / 384)
-        #     if message.type == 'note_on' and message.time != 0:
-        #         for note in chords[part][1]:
-        #             self.accompaniment.append(Message('note_on', channel=0, note=36 + note,
-        #                                               velocity=50, time=0))
-        #         for i in range(1, times + 1):
-        #             is_pause = True
-        #             for note in chords[part][1]:
-        #                 if is_pause:
-        #                     self.accompaniment.append(Message('note_off', channel=0, note=36 + note,
-        #                                                       velocity=0, time=int(384)))
-        #                     count_time += 384
-        #                     is_pause = False
-        #                 else:
-        #                     self.accompaniment.append(Message('note_off', channel=0, note=36 + note,
-        #                                                       velocity=0, time=0))
-        #             if count_time == 768:
-        #                 part += 1
-        #                 count_time = 0
-        #             if i != times - 1:
-        #                 for note in chords[part][1]:
-        #                     self.accompaniment.append(Message('note_on', channel=0, note=36 + note,
-        #                                                       velocity=50, time=0))
-        #     if times != 0 and message.type == 'note_on':
-        #         message.time = 0
-        #     self.accompaniment.append(message)
-        #     count_time += message.time
-        #     if count_time == 0 and not is_write:
-        #         if part != 0:
-        #             for note in chords[part - 1][1]:
-        #                 self.accompaniment.append(Message('note_off', channel=0, note=36 + note, velocity=0, time=0))
-        #         for note in chords[part][1]:
-        #             self.accompaniment.append(Message('note_on', channel=0, note=36 + note, velocity=50, time=0))
-        #         is_write = True
-        #
-        #     if count_time == 384:
-        #         for note in chords[part][1]:
-        #             self.accompaniment.append(Message('note_off', channel=0, note=36 + note, velocity=0, time=0))
-        #         for note in chords[part][1]:
-        #             self.accompaniment.append(Message('note_on', channel=0, note=36 + note, velocity=50, time=0))
-        #
-        #         is_write = False
-        #
-        #     if count_time == 768:
-        #         count_time = 0
-        #         for note in chords[part][1]:
-        #             self.accompaniment.append(Message('note_off', channel=0, note=36 + note, velocity=0, time=0))
-        #         part += 1
-        #         is_write = False
-        self.accompaniment.append(MetaMessage('end_of_track', time=0))
+            cur_time = chords_length[0][2]
+        if time > cur_time:
+            self.accompaniment.append(MetaMessage('end_of_track', time=time - cur_time))
+        else:
+            self.accompaniment.append(MetaMessage('end_of_track', time=0))
         return self.accompaniment
 
     def generate(self) -> MidiFile:
@@ -444,7 +401,7 @@ class AccompanimentGenerator:
         return with_accompaniment
 
 
-melody_path = "barbiegirl_mono.mid"
-melody_with_accompaniment_path = "my_barbiegirl_mono_accompaniment.mid"
+melody_path = "input1.mid"
+melody_with_accompaniment_path = "my_melody1.2.mid"
 accompaniment = AccompanimentGenerator(melody_path).generate()
 accompaniment.save(melody_with_accompaniment_path)
