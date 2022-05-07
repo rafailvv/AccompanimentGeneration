@@ -196,29 +196,37 @@ class EvolutionAlgorithm:
 
     def get_fitness(self,
                     melody_part: List[Union[str, int]],
+                    prev_individual : Tuple[Chord, List[int]],
                     individual: Tuple[Chord, List[int]]) -> float:
         count = 0
         for note in melody_part:
             if note in individual[1]:
                 count += 1
-        if len(melody_part) == 1 and individual[1][0] in melody_part:
-            count += 1
-        if 'm' in self.key and 'm' in individual[0].name:
-            count += 0.3
-        if 'm' not in self.key and 'm' not in individual[0].name:
-            count += 0.3
-        # if melody_part[0] == individual[1][0]:
-        #     count += 0.5
-        # if melody_part[-1] == individual[1][0]:
-        #     count += 0.5
-        if abs(individual[1][1] - individual[1][0]) > 2 and abs(individual[1][1] - individual[1][2]) > 2:
-            count += 0.1
+        if not (prev_individual is None):
+            if not melody_part and individual[0].name == prev_individual[0].name:
+                count += 0.3
+            if melody_part and individual[0].name != prev_individual[0].name:
+                count += 0.2
+        # if len(melody_part) == 1 and individual[1][0] in melody_part:
+        #     count += 1
+        # if 'm' in self.key and 'm' in individual[0].name:
+        #     count += 0.3
+        # if 'm' not in self.key and 'm' not in individual[0].name:
+        #     count += 0.3
+        if melody_part:
+            if melody_part[0] == individual[1][0]:
+                count += 0.1
+            if melody_part[-1] == individual[1][0]:
+                count += 0.1
+            if abs(individual[1][1] - individual[1][0]) > 2 and abs(individual[1][1] - individual[1][2]) > 2:
+                count += 0.2
         return count
 
     def population_fitness(self,
                            melody_part: List[Union[str, int]],
+                           prev_individual: Tuple[Chord, List[int]],
                            population: List[Tuple[Chord, List[int]]]) -> List[float]:
-        fitness = [self.get_fitness(melody_part, individual) for individual in population]
+        fitness = [self.get_fitness(melody_part, prev_individual, individual) for individual in population]
         return fitness
 
     def crossover(self,
@@ -280,27 +288,30 @@ class EvolutionAlgorithm:
 
         return [*parents, *offsprings]
 
-    def evolution(self, melody_part: List[Union[str, int]], ) -> Tuple[Chord, List[int]]:
+    def evolution(self, melody_part: List[Union[str, int]], prev_individual : Tuple[Chord, List[int]],) -> Tuple[Chord, List[int]]:
         population = self.get_population(self.population_size)
         count_same_fitness = 0
-        fitness = self.population_fitness(melody_part, population)
+        fitness = self.population_fitness(melody_part, prev_individual, population)
         print(f"For the melody_part {melody_part}")
 
         for generation in range(self.generations):
             prev_fitness = fitness
             offsprings = self.crossover(population, 30)
             offsprings = self.mutation(offsprings, 5)
-            offsprings_fitness = self.population_fitness(melody_part, offsprings)
+            offsprings_fitness = self.population_fitness(melody_part, prev_individual, offsprings)
             population = self.selection(population, fitness, offsprings, offsprings_fitness, 3)
-            fitness = self.population_fitness(melody_part, population)
+            fitness = self.population_fitness(melody_part, prev_individual, population)
             if max(fitness) == max(prev_fitness):
                 count_same_fitness += 1
 
             print(f"{generation + 1}. Chord {population[fitness.index(max(fitness))][0]} with fitness {max(fitness)}")
 
             if count_same_fitness == EvolutionAlgorithm.COUNT_WITHOUT_CHANGING:
-                print(f"The best chord is {population[fitness.index(max(fitness))]} with fitness {max(fitness)}\n\n")
-                return population[fitness.index(max(fitness))]
+                if max(fitness) == 0:
+                    return prev_individual
+                else:
+                    print(f"The best chord is {population[fitness.index(max(fitness))]} with fitness {max(fitness)}\n\n")
+                    return population[fitness.index(max(fitness))]
 
 
 class AccompanimentGenerator:
@@ -310,7 +321,7 @@ class AccompanimentGenerator:
     def divide_melody_by_parts(self) -> List[List[Union[str, int]]]:
         time = 0
         notes_length = []
-        for message in self.initial_melody.tracks[1]:
+        for message in self.initial_melody.tracks[1][2:]:
             time += message.time
             if message.type == 'note_on':
                 notes_length.append([message.note, time])
@@ -323,23 +334,26 @@ class AccompanimentGenerator:
         for i in range(num_parts):
             part = []
             for note, start, finish in notes_length:
-                if 768 * i <= start <= finish <= 768 * (i + 1):
-                    part.append(note % 12)
+                for j in range(start, finish+1):
+                    if 768 * i < j < 768 * (i + 1):
+                        part.append(note % 12)
+                        break
 
             notes.append(part)
         return notes
 
     def include_accompaniment(self, chords: List[Tuple[Chord, List[int]]]) -> MidiTrack:
+        base = 36
         self.accompaniment = MidiTrack()
         self.accompaniment.append(MetaMessage('track_name', name='Elec. Piano (Classic)', time=0))
         time = 0
         chords_length = []
         for chord in chords:
             for i in range(2):
-                if chord[1][0] > chord[1][1]:
-                    chord[1][0] -= 12
-                if chord[1][1] > chord[1][2]:
-                    chord[1][2] += 12
+                # if chord[1][0] > chord[1][1]:
+                #     chord[1][0] -= 12
+                # if chord[1][1] > chord[1][2]:
+                #     chord[1][2] += 12
                 chords_length.append([chord[1], time, time + 384])
                 time += 384
 
@@ -349,11 +363,11 @@ class AccompanimentGenerator:
             time += message.time
             while chords_length[0][2] <= time or chords_length[0][1] == 0:
                 if chords_length[0][2] <= time:
-                    self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][0],
+                    self.accompaniment.append(Message('note_off', channel=0, note=base + chords_length[0][0][0],
                                                       velocity=50, time=chords_length[0][2] - cur_time))
-                    self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][1],
+                    self.accompaniment.append(Message('note_off', channel=0, note=base + chords_length[0][0][1],
                                                       velocity=50, time=0))
-                    self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][2],
+                    self.accompaniment.append(Message('note_off', channel=0, note=base + chords_length[0][0][2],
                                                       velocity=50, time=0))
                     cur_time = chords_length[0][2]
                     chords_length.pop(0)
@@ -363,11 +377,11 @@ class AccompanimentGenerator:
                     cur_time = time
                     break
                 if chords_length[0][1] is not None and chords_length[0][1] <= time:
-                    self.accompaniment.append(Message('note_on', channel=0, note=36 + chords_length[0][0][0],
+                    self.accompaniment.append(Message('note_on', channel=0, note=base + chords_length[0][0][0],
                                                       velocity=50, time=chords_length[0][1] - cur_time))
-                    self.accompaniment.append(Message('note_on', channel=0, note=36 + chords_length[0][0][1],
+                    self.accompaniment.append(Message('note_on', channel=0, note=base + chords_length[0][0][1],
                                                       velocity=50, time=0))
-                    self.accompaniment.append(Message('note_on', channel=0, note=36 + chords_length[0][0][2],
+                    self.accompaniment.append(Message('note_on', channel=0, note=base + chords_length[0][0][2],
                                                       velocity=50, time=0))
                     cur_time = chords_length[0][1]
                     chords_length[0][1] = None
@@ -376,11 +390,11 @@ class AccompanimentGenerator:
                 self.accompaniment.append(message)
                 cur_time = time
         if chords_length:
-            self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][0],
+            self.accompaniment.append(Message('note_off', channel=0, note=base + chords_length[0][0][0],
                                               velocity=50, time=chords_length[0][2] - cur_time))
-            self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][1],
+            self.accompaniment.append(Message('note_off', channel=0, note=base + chords_length[0][0][1],
                                               velocity=50, time=0))
-            self.accompaniment.append(Message('note_off', channel=0, note=36 + chords_length[0][0][2],
+            self.accompaniment.append(Message('note_off', channel=0, note=base + chords_length[0][0][2],
                                               velocity=50, time=0))
             cur_time = chords_length[0][2]
         if time > cur_time:
@@ -397,8 +411,10 @@ class AccompanimentGenerator:
         evolutionAlgorithm = EvolutionAlgorithm(generations=150, population_size=50, chords=chords, key=melody_key)
 
         chords_for_accompaniment = []
+        prev_individual = None
         for part in divided_melody:
-            chords_for_accompaniment.append(evolutionAlgorithm.evolution(part))
+            prev_individual = evolutionAlgorithm.evolution(part, prev_individual)
+            chords_for_accompaniment.append(prev_individual)
 
         print(chords_for_accompaniment)
 
@@ -410,7 +426,7 @@ class AccompanimentGenerator:
         return with_accompaniment
 
 
-melody_path = "barbiegirl_mono.mid"
-melody_with_accompaniment_path = "output_ex.mid"
+melody_path = "input3.mid"
+melody_with_accompaniment_path = "output_input3.3.mid"
 accompaniment = AccompanimentGenerator(melody_path).generate()
 accompaniment.save(melody_with_accompaniment_path)
