@@ -212,7 +212,8 @@ class EvolutionAlgorithm:
             if note in individual[1]:
                 count += 1
         if not (prev_individual is None):
-            if not melody_part and individual[0].name == prev_individual[0].name and individual[1] == prev_individual[1]:
+            if not melody_part and individual[0].name == prev_individual[0].name and individual[1] == prev_individual[
+                1]:
                 count += 0.3
             if melody_part and individual[0].name != prev_individual[0].name:
                 count += 0.2
@@ -229,12 +230,14 @@ class EvolutionAlgorithm:
                 self.contains_sequence([second_step, seventh_step, key_val], melody_part):
             if individual[1] == individual[0].get_notes() and individual[0].name == self.key:
                 count += 10
-            if individual[1] == individual[0].get_notes() and individual[0].name.replace('m','') == Keys.names[(key_val + 7) % 12]:
+            if individual[1] == individual[0].get_notes() and individual[0].name.replace('m', '') == Keys.names[
+                (key_val + 7) % 12]:
                 count += 8
 
         elif self.contains_sequence([sixth_step, forth_step, dominant_value], melody_part) or \
                 self.contains_sequence([forth_step, sixth_step, dominant_value], melody_part):
-            if individual[1] == individual[0].get_notes() and individual[0].name.replace('m','') == Keys.names[dominant_value]:
+            if individual[1] == individual[0].get_notes() and individual[0].name.replace('m', '') == Keys.names[
+                dominant_value]:
                 count += 10
 
         if melody_part:
@@ -321,7 +324,7 @@ class EvolutionAlgorithm:
 
         for generation in range(self.generations):
             prev_fitness = fitness
-            offsprings = self.crossover(population, 30)
+            offsprings = self.crossover(population, 10)
             offsprings = self.mutation(offsprings, 5)
             offsprings_fitness = self.population_fitness(melody_part, prev_individual, offsprings)
             population = self.selection(population, fitness, offsprings, offsprings_fitness, 3)
@@ -333,7 +336,7 @@ class EvolutionAlgorithm:
 
             if count_same_fitness == EvolutionAlgorithm.COUNT_WITHOUT_CHANGING:
                 break
-            elif max(fitness) > 10 and count_same_fitness == 5:
+            elif max(fitness) > 10:
                 second_individual, fitness_second_individual = population[fitness.index(max(fitness))], max(fitness)
                 fitness_copy = fitness.copy()
                 fitness_copy.sort(reverse=True)
@@ -359,6 +362,7 @@ class EvolutionAlgorithm:
                 f"The second chord is {individual} with fitness {fitness_individual}\n\n"
             )
             return individual, individual
+
 
 class AccompanimentGenerator:
     def __init__(self, path: str):
@@ -457,7 +461,7 @@ class AccompanimentGenerator:
         melody_key, chords = keys.get_melody_key()
         print(f"Melody key is {melody_key} : {chords}")
         divided_melody = self.divide_melody_by_parts()
-        evolutionAlgorithm = EvolutionAlgorithm(generations=50, population_size=30, chords=chords, key=melody_key)
+        evolutionAlgorithm = EvolutionAlgorithm(generations=30, population_size=10, chords=chords, key=melody_key)
 
         chords_for_accompaniment = []
         second_prev_individual = None
@@ -476,7 +480,7 @@ class AccompanimentGenerator:
         return with_accompaniment
 
 
-melody_path = "input3.mid"
-melody_with_accompaniment_path = "output_input3_final.mid"
+melody_path = "input1.mid"
+melody_with_accompaniment_path = "output_test.mid"
 accompaniment = AccompanimentGenerator(melody_path).generate()
 accompaniment.save(melody_with_accompaniment_path)
