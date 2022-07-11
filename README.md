@@ -1,35 +1,55 @@
-# AccompanimentGeneration
-Descriptions of the Accompaniment Creation Process
+# Descriptions of the Accompaniment Creation Process
+
 The process was divided into the following main steps:
-• Reading the notes of a melody from a MIDI file
+
+• Reading the notes of a melody from a `MIDI` file
+
 • Determining the key of a melody
+
 • Chord generation using evolution algorithm
+
 • Adding chords to the initial melody
+
 Some of the steps are described in more detail below. All process
-located in the AccopmpanimentGenerator class and performed using
-the generate method.
-Reading the notes of a melody from a MIDI file
-The mido library is used to work with *.mid files in Python. The file
+located in the `AccopmpanimentGenerator` class and performed using
+the `generate` method.
+
+
+## Reading the notes of a melody from a MIDI file
+
+
+The `mido` library is used to work with `*.mid` files in Python. The file
 is opened, all the notes of the melody are read and they are divided
-into groups. All this is implemented in the divide_melody_by_parts
+into groups. All this is implemented in the `divide_melody_by_parts`
 method
-Determining the key of a melody
-The algorithm is located in the Keys class. The constructor
+
+
+## Determining the key of a melody
+
+The algorithm is located in the `Keys` class. The constructor
 generates a set of all possible major and minor keys with chords that
 applicable in each key based on the Figure 6 and 7 in Assignment
 description.
+
 Determination of key consists of the following criteria:
+
 - The number of matching notes. A list of keys that have the largest
 number of matching notes is determined;
+
 - Among the selected keys, the first and last notes in the melody
 are analyzed (1 point for the tonic, 0.66 for the dominant and
 subdominant, 0.33 for the third degree);
+
 - In addition, the number of stable notes in the melody for each key
 is determined. The key with the most notes gets 1 more point.
+
 The key with the most points is the key of the given melody.
-The get_melody_key method returns the key name and a list of the
+
+The `get_melody_key` method returns the key name and a list of the
 names of all chords in the computed key.
-Chord generation using evolution algorithm
+
+## Chord generation using evolution algorithm
+
 To generate the accompaniment, I used a type of evolutionary
 algorithm - genetic algorithm. The algorithm is located in the
 EvolutionAlgorithm class. Evolution occurs for each part separately.
