@@ -115,3 +115,15 @@ in the melody.
 
 The result of evolution is two individuals (chords with a certain
 type) that have the highest fitness value.
+
+# Notes of output melodies
+
+![image](https://user-images.githubusercontent.com/69470761/178219518-686707ee-306e-4ce8-aafa-f2b414a21237.png)
+
+![image](https://user-images.githubusercontent.com/69470761/178219632-ca55c5ea-7d88-46c5-b517-b6aa08c9ab1d.png)
+
+![image](https://user-images.githubusercontent.com/69470761/178219780-2ffe635e-64f2-4c75-b965-ae87c705b6ed.png)
+
+
+
+
