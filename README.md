@@ -51,17 +51,20 @@ names of all chords in the computed key.
 ## Chord generation using evolution algorithm
 
 To generate the accompaniment, I used a type of evolutionary
-algorithm - genetic algorithm. The algorithm is located in the
-EvolutionAlgorithm class. Evolution occurs for each part separately.
-The genotype is a musical chord consisting of three notes and one
+algorithm - **genetic algorithm**. The algorithm is located in the
+`EvolutionAlgorithm` class. Evolution occurs for each part separately.
+
+The **genotype** is a musical chord consisting of three notes and one
 of the following types: major and minor triads, first and second
 inversions of major and minor triads, diminished chords (DIM),
 suspended second chords (SUS2), suspended fourth chords (SUS4).
-A population is a set of individuals (chords) included in the key of
+
+A **population** is a set of individuals (chords) included in the key of
 a melody.
-The fitness function for the entire population is the generation of
+
+The **fitness** function for the entire population is the generation of
 a list of fitness values for each individual (chord). It’s implemented in
-the get_fitness method Fitness values depend on the following criteria:
+the `get_fitness` method Fitness values depend on the following criteria:
 - The number of notes in a certain part of the melody that are
 contained in the chord (1 point per match);
 - 0.3 points if the melody part is empty and the individual matches the
@@ -79,24 +82,29 @@ melody part;
 - 0.1 point if the root of the chord is the same as the last note in the
 melody part;
 - 0.2 points if chord type is triad.
-Crossover is a point crossing, which is implemented in the
-crossover method and occurs as follows:
+
+
+**Crossover** is a point crossing, which is implemented in the
+`crossover` method and occurs as follows:
 - Two parents (chords) are randomly selected from the population;
 - As a result of crossing, two children (triad chords) are created, which
-are the middle between the parents. For example, in the key of C,
+are the middle between the parents. *For example, in the key of C,
 two parents C and F were chosen. Therefore, the offspring will be A
-and D;
+and D;*
 - For the population, the crossing process is repeated 10 times.
-Mutation is implemented in the mutation method and represent
+
+**Mutation** is implemented in the `mutation` method and represent
 the process of choosing a random representative of the offspring and
 changing its chord type to DIM, SUS2 or SUS4. For the population, the
 mutation process is repeated 5 times.
-Selecting is implemented in the selection method and represent
+
+**Selecting** is implemented in the `selection` method and represent
 the process of sorting fitness for population and offspring. Three worst
 individuals are removed from the population and three individuals with
 the highest fitness value are added, which eventually form a new
 population.
-The process of evolution is the generation of a field of 30
+
+The **process of evolution** is the generation of a field of 30
 individuals for a particular part of a musical melody. Then, for 10
 generations, the process of calculating the fitness function, crossing,
 mutating and selecting suitable individuals for a new population takes
@@ -104,5 +112,6 @@ place. The result of the output is a repetition of the maximum fitness
 value 30 times without change or finding a fitness value greater or
 equal than 10, which demonstrates resolution to the tonic or dominant
 in the melody.
+
 The result of evolution is two individuals (chords with a certain
 type) that have the highest fitness value.
